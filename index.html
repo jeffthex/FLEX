@@ -5,37 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="manifest" href="manifest.json">
     <title>FLEX AI</title>
-    
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
-    
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignal.SDK.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(function(oneSignal) {
-        oneSignal.init({
-          appId: "1f97b903-8c5f-4d29-b3b7-14f58d8f835b",
-        });
+        oneSignal.init({ appId: "1f97b903-8c5f-4d29-b3b7-14f58d8f835b" });
       });
     </script>
-
     <style>
-        :root { --apple-blue: #007AFF; --bg: #000; --card: #1C1C1E; }
+        :root { --main-color: #5c040c; --bg: #000; --card: #1C1C1E; }
         body { background: var(--bg); color: #fff; font-family: -apple-system, sans-serif; margin: 0; overflow: hidden; }
-        #header { position: fixed; top: 0; width: 100%; padding: 40px 20px 20px; display: flex; justify-content: space-around; z-index: 100; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); }
-        .stat-card { background: var(--card); padding: 15px; border-radius: 15px; min-width: 110px; text-align: center; border: 1px solid #333; }
-        .stat-label { font-size: 10px; text-transform: uppercase; color: #8E8E93; margin-bottom: 5px; }
-        .stat-value { font-size: 24px; font-weight: bold; color: var(--apple-blue); }
+        
+        /* Header com Streak */
+        #header { position: fixed; top: 0; width: 100%; padding: 40px 10px 10px; display: flex; justify-content: space-around; z-index: 100; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); }
+        .stat-card { background: var(--card); padding: 10px; border-radius: 12px; min-width: 80px; text-align: center; border: 1px solid #333; }
+        .stat-label { font-size: 9px; text-transform: uppercase; color: #8E8E93; }
+        .stat-value { font-size: 20px; font-weight: bold; color: var(--main-color); }
+        .streak-val { color: #ff9500; } /* Cor de fogo para o streak */
+
+        /* Botão Histórico Lateral */
+        #history-btn { position: fixed; right: 10px; top: 120px; background: var(--card); border: 1px solid #333; color: white; padding: 10px; border-radius: 50%; z-index: 100; font-size: 20px; }
+
+        /* Painel de Histórico (Escondido por padrão) */
+        #history-panel { position: fixed; top: 0; right: -100%; width: 80%; height: 100%; background: var(--card); z-index: 300; transition: 0.3s; padding: 50px 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.5); overflow-y: auto; }
+        #history-panel.open { right: 0; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; }
+
         .video-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         video, canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         #feedback { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; opacity: 0; transition: 0.2s; z-index: 200; pointer-events: none; }
-        #footer { position: fixed; bottom: 0; width: 100%; padding: 20px 0 40px; display: flex; justify-content: center; z-index: 100; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
-        button { background: var(--apple-blue); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-weight: 600; font-size: 16px; }
+        #footer { position: fixed; bottom: 0; width: 100%; padding: 20px 0 40px; display: flex; flex-direction: column; align-items: center; z-index: 100; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
+        .goal-text { font-size: 14px; color: #8E8E93; margin-bottom: 10px; }
+        button { background: var(--main-color); color: white; border: none; padding: 12px 25px; border-radius: 20px; font-weight: 600; }
     </style>
 </head>
 <body>
     <div id="header">
+        <div class="stat-card">
+            <div class="stat-label">🔥 Streak</div>
+            <div id="streak-count" class="stat-value streak-val">0</div>
+        </div>
         <div class="stat-card">
             <div class="stat-label">Sessão</div>
             <div id="session-count" class="stat-value">0</div>
@@ -45,14 +57,34 @@
             <div id="total-today" class="stat-value">0</div>
         </div>
     </div>
+
+    <button id="history-btn" onclick="toggleHistory()">📊</button>
+
+    <div id="history-panel">
+        <button onclick="toggleHistory()" style="background:none; margin-bottom:20px;">✖ Fechar</button>
+        <h3>Histórico Recente</h3>
+        <div id="history-list"></div>
+        <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+        <p>Total Acumulado: <span id="grand-total">0</span></p>
+    </div>
+
     <div id="feedback">🔥</div>
     <div class="video-container">
         <video id="input_video" playsinline></video>
         <canvas id="output_canvas"></canvas>
     </div>
+
     <div id="footer">
-        <button onclick="ativarNotificacao()">Ativar Som e Alertas</button>
+        <div id="goal-info" class="goal-text">Meta da Sessão: 15</div>
+        <button onclick="ativarNotificacao()">Configurar Alertas</button>
     </div>
+
     <script src="app.js"></script>
+    <script>
+        function toggleHistory() {
+            document.getElementById('history-panel').classList.toggle('open');
+            if(document.getElementById('history-panel').classList.contains('open')) renderHistory();
+        }
+    </script>
 </body>
 </html>
