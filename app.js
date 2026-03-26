@@ -4,7 +4,9 @@ const canvasCtx = canvasElement.getContext('2d');
 
 // --- ESTADOS E PERSISTÊNCIA ---
 let sessionCounter = 0;
-let todayKey = new Date().toISOString().split('T')[0]; // Ex: "2026-03-26"
+// Ajuste para garantir timezone local ao criar a chave da data
+const now = new Date();
+const todayKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); // YYYY-MM-DD local
 
 // Carregar dados salvos
 let userData = JSON.parse(localStorage.getItem('flexData')) || {
@@ -23,12 +25,12 @@ function initData() {
     
     // Lógica de Streak (Estilo Duolingo)
     if (userData.lastActive) {
-        const last = new Date(userData.lastActive);
-        const today = new Date(todayKey);
+        const last = new Date(userData.lastActive + 'T00:00:00'); // Força timezone local
+        const today = new Date(todayKey + 'T00:00:00');
         const diffDays = Math.floor((today - last) / (1000 * 60 * 60 * 24));
         
         if (diffDays === 1) {
-            // Fez ontem, mantém o streak (será incrementado na primeira flexão de hoje)
+            // Fez ontem, mantém o streak
         } else if (diffDays > 1) {
             userData.streak = 0; // Quebrou o streak
         }
@@ -47,8 +49,8 @@ function updateUI() {
     document.getElementById('grand-total').innerText = userData.grandTotal;
     
     // Cálculo de Meta: +2 por sessão a cada 14 dias
-    const start = new Date(userData.startDate);
-    const today = new Date(todayKey);
+    const start = new Date(userData.startDate + 'T00:00:00');
+    const today = new Date(todayKey + 'T00:00:00');
     const daysDiff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
     const currentGoal = 15 + (Math.floor(daysDiff / 14) * 2);
     document.getElementById('goal-info').innerText = `Meta da Sessão: ${currentGoal}`;
@@ -70,7 +72,10 @@ pose.onResults((results) => {
     // Lógica Frontal
     const shoulderAvgY = (results.poseLandmarks[11].y + results.poseLandmarks[12].y) / 2;
     
+    // Calibrado para visão frontal (ombros descem abaixo de 70% da tela)
     if (shoulderAvgY > 0.70) stage = "down";
+    
+    // Sobe acima de 45% para contar
     if (shoulderAvgY < 0.45 && stage === "down") {
         stage = "up";
         
@@ -87,7 +92,7 @@ pose.onResults((results) => {
         document.getElementById('session-count').innerText = sessionCounter;
         saveData();
 
-        if (sessionCounter % 10 === 0) audio10Point.play();
+        if (sessionCounter % 10 === 0 && sessionCounter !== 0) audio10Point.play();
         else audioPoint.play();
 
         const fb = document.getElementById('feedback');
@@ -106,13 +111,29 @@ pose.onResults((results) => {
     canvasCtx.restore();
 });
 
+// Nova função para formatar data: Quinta - 26/03
+function formatDateString(dateStr) {
+    const dateObj = new Date(dateStr + 'T00:00:00'); // Força timezone local
+    const weekdayOptions = { weekday: 'long' };
+    const dateOptions = { day: '2-digit', month: '2-digit' };
+    
+    let weekday = dateObj.toLocaleDateString('pt-BR', weekdayOptions);
+    let date = dateObj.toLocaleDateString('pt-BR', dateOptions);
+    
+    // Capitaliza apenas a primeira letra do dia da semana (ex: Quinta)
+    weekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    
+    return `${weekday} - ${date}`;
+}
+
 function renderHistory() {
     const list = document.getElementById('history-list');
     list.innerHTML = "";
     // Pega os últimos 7 dias registrados
     const dates = Object.keys(userData.history).sort().reverse().slice(0, 7);
     dates.forEach(d => {
-        list.innerHTML += `<div class="history-item"><span>${d}</span> <b>${userData.history[d]} reps</b></div>`;
+        const formattedDate = formatDateString(d); // Formata aqui
+        list.innerHTML += `<div class="history-item"><span class="history-item-date">${formattedDate}</span> <b>${userData.history[d]} reps</b></div>`;
     });
 }
 
