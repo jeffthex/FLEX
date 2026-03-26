@@ -42,14 +42,16 @@
         #history-label {
             font-size: 10px;
             text-transform: uppercase;
-            color: #8E8E93;
+            /* AJUSTE AQUI: Branco com Sombra */
+            color: #ffffff; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
             margin-bottom: 4px;
         }
         #history-btn {
             width: 50px;
             height: 50px;
             background-color: var(--card);
-            background-image: url('icon.png'); /* Certifique-se de que icon.png existe */
+            background-image: url('icon.png'); /* Certifique-se de que icon.png existe no repo */
             background-size: cover;
             background-position: center;
             border: 2px solid #333;
@@ -67,8 +69,15 @@
         .video-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         video, canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         #feedback { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; opacity: 0; transition: 0.2s; z-index: 200; pointer-events: none; }
+        
         #footer { position: fixed; bottom: 0; width: 100%; padding: 20px 0 40px; display: flex; flex-direction: column; align-items: center; z-index: 100; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
-        .goal-text { font-size: 14px; color: #8E8E93; margin-bottom: 10px; }
+        .goal-text { 
+            font-size: 14px; 
+            /* AJUSTE AQUI: Branco com Sombra */
+            color: #ffffff; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            margin-bottom: 10px; 
+        }
         button#config-btn { background: var(--main-color); color: white; border: none; padding: 12px 25px; border-radius: 20px; font-weight: 600; }
     </style>
 </head>
