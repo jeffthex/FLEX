@@ -17,7 +17,7 @@ let userData = JSON.parse(localStorage.getItem('flexData')) || {
 
 // --- TRAVAS DE SEGURANÇA ---
 let lastDownTime = 0; 
-const MIN_PUSHUP_TIME = 600; // Tempo mínimo de uma flexão em milissegundos (0.6s)
+const MIN_PUSHUP_TIME = 600; 
 
 // --- FUNÇÃO MATEMÁTICA ---
 function calcularAngulo(A, B, C) {
@@ -59,7 +59,7 @@ const audio10Point = new Audio('10point.mp3');
 let stage = "up";
 
 const pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
-pose.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 }); // Aumentei a confiança mínima
+pose.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
 
 pose.onResults((results) => {
     if (!results.poseLandmarks) return;
@@ -71,21 +71,16 @@ pose.onResults((results) => {
     const anguloDir = calcularAngulo(landmarks[12], landmarks[14], landmarks[16]);
     const anguloMedio = (anguloEsq + anguloDir) / 2;
 
-    // --- LÓGICA DE CONTAGEM COM TRAVA DE TEMPO ---
-    
-    // 1. Detecta que desceu
     if (anguloMedio < 100) { 
         if (stage !== "down") {
-            lastDownTime = Date.now(); // Marca o início da descida
+            lastDownTime = Date.now();
         }
         stage = "down";
     }
     
-    // 2. Detecta que subiu
     if (anguloMedio > 155 && stage === "down") {
         const duration = Date.now() - lastDownTime;
 
-        // SÓ CONTA SE: demorou mais que 0.6s (evita balanço de braço/ajuste de câmera)
         if (duration > MIN_PUSHUP_TIME) {
             stage = "up";
             
@@ -107,14 +102,9 @@ pose.onResults((results) => {
             const fb = document.getElementById('feedback');
             fb.style.opacity = "1";
             setTimeout(() => fb.style.opacity = "0", 400);
-        } else {
-            // Se foi rápido demais, pode ter sido um erro. 
-            // Não resetamos o stage para "up" imediatamente para evitar bugs, 
-            // mas ignoramos o incremento.
         }
     }
 
-    // Desenho
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     const conn = [[11,12], [11,23], [12,24], [23,24], [11,13], [13,15], [12,14], [14,16], [23,25], [25,27], [24,26], [26,28]];
@@ -125,7 +115,6 @@ pose.onResults((results) => {
     canvasCtx.restore();
 });
 
-// Formatação do histórico
 function formatDateString(dateStr) {
     const dateObj = new Date(dateStr + 'T00:00:00');
     const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
@@ -146,8 +135,26 @@ const camera = new Camera(videoElement, { onFrame: async () => { await pose.send
 camera.start();
 initData();
 
+// --- CORREÇÃO DO TRAVAMENTO ---
 async function ativarNotificacao() {
+    const btn = document.getElementById('config-btn');
+    
+    // Libera o áudio
     audioPoint.play().then(() => { audioPoint.pause(); audioPoint.currentTime = 0; });
+    
     const permission = await Notification.requestPermission();
-    if (permission === 'granted') alert('Sistema Ativado!');
+    
+    if (permission === 'granted') {
+        btn.innerText = 'SISTEMA ATIVADO!';
+        btn.style.backgroundColor = '#2ecc71'; // Muda para verde
+    } else {
+        btn.innerText = 'PERMISSÃO NEGADA';
+        btn.style.backgroundColor = '#e74c3c'; // Muda para vermelho
+    }
+
+    // Volta ao texto original após 3 segundos sem travar a tela
+    setTimeout(() => {
+        btn.innerText = 'Configurar Alertas';
+        btn.style.backgroundColor = '';
+    }, 3000);
 }

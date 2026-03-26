@@ -22,63 +22,31 @@
         :root { --main-color: #5c040c; --bg: #000; --card: #1C1C1E; }
         body { background: var(--bg); color: #fff; font-family: -apple-system, sans-serif; margin: 0; overflow: hidden; }
         
-        /* Header com Streak */
         #header { position: fixed; top: 0; width: 100%; padding: 40px 10px 10px; display: flex; justify-content: space-around; z-index: 100; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); }
         .stat-card { background: var(--card); padding: 10px; border-radius: 12px; min-width: 80px; text-align: center; border: 1px solid #333; }
         .stat-label { font-size: 9px; text-transform: uppercase; color: #8E8E93; }
         .stat-value { font-size: 20px; font-weight: bold; color: var(--main-color); }
-        .streak-val { color: #ff9500; } /* Cor de fogo para o streak */
+        .streak-val { color: #ff9500; }
 
-        /* Wrapper do Botão Histórico Lateral */
-        #history-wrapper {
-            position: fixed;
-            right: 15px;
-            top: 130px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 100;
-        }
-        #history-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            /* AJUSTE AQUI: Branco com Sombra */
-            color: #ffffff; 
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-            margin-bottom: 4px;
-        }
-        #history-btn {
-            width: 50px;
-            height: 50px;
-            background-color: var(--card);
-            background-image: url('icon.png'); /* Certifique-se de que icon.png existe no repo */
-            background-size: cover;
-            background-position: center;
-            border: 2px solid #333;
-            border-radius: 50%; /* Recorte circular */
-            cursor: pointer;
-            outline: none;
-        }
+        #history-wrapper { position: fixed; right: 15px; top: 130px; display: flex; flex-direction: column; align-items: center; z-index: 100; }
+        #history-label { font-size: 10px; text-transform: uppercase; color: #ffffff; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); margin-bottom: 4px; }
+        #history-btn { width: 50px; height: 50px; background-color: var(--card); background-image: url('icon.png'); background-size: cover; background-position: center; border: 2px solid #333; border-radius: 50%; outline: none; }
 
-        /* Painel de Histórico (Escondido por padrão) */
         #history-panel { position: fixed; top: 0; right: -100%; width: 80%; height: 100%; background: var(--card); z-index: 300; transition: 0.3s; padding: 50px 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.5); overflow-y: auto; }
         #history-panel.open { right: 0; }
         .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; }
-        .history-item-date { text-transform: capitalize; } /* Capitaliza o dia da semana */
+
+        /* BARRA DE PROGRESSO */
+        #progress-container { width: 80%; height: 8px; background: #333; border-radius: 4px; margin-bottom: 15px; overflow: hidden; border: 1px solid #444; }
+        #progress-fill { width: 0%; height: 100%; background: var(--main-color); transition: width 0.4s ease-out; box-shadow: 0 0 10px var(--main-color); }
 
         .video-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
         video, canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         #feedback { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; opacity: 0; transition: 0.2s; z-index: 200; pointer-events: none; }
         
         #footer { position: fixed; bottom: 0; width: 100%; padding: 20px 0 40px; display: flex; flex-direction: column; align-items: center; z-index: 100; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
-        .goal-text { 
-            font-size: 14px; 
-            /* AJUSTE AQUI: Branco com Sombra */
-            color: #ffffff; 
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-            margin-bottom: 10px; 
-        }
-        button#config-btn { background: var(--main-color); color: white; border: none; padding: 12px 25px; border-radius: 20px; font-weight: 600; }
+        .goal-text { font-size: 14px; color: #ffffff; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); margin-bottom: 5px; }
+        button#config-btn { background: var(--main-color); color: white; border: none; padding: 12px 25px; border-radius: 20px; font-weight: 600; transition: 0.3s; }
     </style>
 </head>
 <body>
@@ -118,6 +86,9 @@
 
     <div id="footer">
         <div id="goal-info" class="goal-text">Meta da Sessão: 15</div>
+        <div id="progress-container">
+            <div id="progress-fill"></div>
+        </div>
         <button id="config-btn" onclick="ativarNotificacao()">Configurar Alertas</button>
     </div>
 
