@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <title>Flexão App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; margin: 0; }
+        video { width: 100%; max-width: 500px; border-radius: 15px; }
+        #count { font-size: 5rem; color: #00ff00; }
+        button { padding: 15px; background: #007aff; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="count">0</div>
+    <video id="input_video" playsinline></video>
+    <br><br>
+    <button onclick="ativarNotificacao()">Ativar Notificações</button>
+    <script src="app.js"></script>
+</body>
+</html>
