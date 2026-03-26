@@ -17,7 +17,10 @@ let userData = JSON.parse(localStorage.getItem('flexData')) || {
 let sessaoAtiva = false;
 let executandoTimer = false;
 let lastDownTime = 0; 
-const MIN_PUSHUP_TIME = 600; 
+
+const MIN_PUSHUP_TIME = 700; 
+const ANGLE_DOWN = 85;       
+const ANGLE_UP = 165;         
 
 function calcularAngulo(A, B, C) {
     let radians = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
@@ -42,23 +45,27 @@ function saveData() {
     updateUI();
 }
 
+function getMetaAtual() {
+    const start = new Date(userData.startDate + 'T00:00:00');
+    const today = new Date(todayKey + 'T00:00:00');
+    const daysDiff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+    return 15 + (Math.floor(daysDiff / 14) * 2);
+}
+
 function updateUI() {
     document.getElementById('total-today').innerText = userData.history[todayKey] || 0;
     document.getElementById('streak-count').innerText = userData.streak;
     document.getElementById('grand-total').innerText = userData.grandTotal;
     
-    const start = new Date(userData.startDate + 'T00:00:00');
-    const today = new Date(todayKey + 'T00:00:00');
-    const daysDiff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-    const currentGoal = 15 + (Math.floor(daysDiff / 14) * 2);
-    
-    document.getElementById('goal-info').innerText = `Meta da Sessão: ${currentGoal}`;
-    const progress = Math.min((sessionCounter / currentGoal) * 100, 100);
+    const meta = getMetaAtual();
+    document.getElementById('goal-info').innerText = `Meta da Sessão: ${meta}`;
+    const progress = Math.min((sessionCounter / meta) * 100, 100);
     document.getElementById('progress-fill').style.width = sessaoAtiva ? progress + '%' : '0%';
 }
 
 function iniciarSessao() {
     document.getElementById('start-overlay').classList.add('hidden');
+    document.getElementById('start-msg').style.display = 'none';
     executandoTimer = true;
     const container = document.getElementById('countdown-container');
     const steps = ["5", "4", "3", "2", "1", "GO!"];
@@ -80,32 +87,18 @@ function iniciarSessao() {
     }, 1000);
 }
 
-let confirmReset = false;
-function confirmarResetarDia() {
-    const btn = document.getElementById('reset-today-btn');
-    if (!confirmReset) {
-        confirmReset = true;
-        btn.innerText = 'TEM CERTEZA? CLIQUE DE NOVO';
-        btn.classList.add('active');
-        setTimeout(() => {
-            if(confirmReset) {
-                btn.innerText = 'ZERAR CONTAGEM HOJE';
-                btn.classList.remove('active');
-                confirmReset = false;
-            }
-        }, 3000);
-    } else {
-        const hoje = userData.history[todayKey] || 0;
-        userData.grandTotal = Math.max(userData.grandTotal - hoje, 0);
-        userData.history[todayKey] = 0;
-        sessionCounter = 0;
-        document.getElementById('session-count').innerText = "0";
-        confirmReset = false;
-        btn.innerText = 'ZERADO!';
-        btn.classList.remove('active');
+function removerReps(qtd) {
+    const hoje = userData.history[todayKey] || 0;
+    if (hoje > 0) {
+        const remover = Math.min(hoje, qtd);
+        userData.history[todayKey] -= remover;
+        userData.grandTotal = Math.max(0, userData.grandTotal - remover);
+        if (sessaoAtiva) {
+            sessionCounter = Math.max(0, sessionCounter - remover);
+            document.getElementById('session-count').innerText = sessionCounter;
+        }
         saveData();
         renderHistory();
-        setTimeout(() => { btn.innerText = 'ZERAR CONTAGEM HOJE'; }, 2000);
     }
 }
 
@@ -125,11 +118,12 @@ pose.onResults((results) => {
     const angulo = (calcularAngulo(lm[11], lm[13], lm[15]) + calcularAngulo(lm[12], lm[14], lm[16])) / 2;
 
     if (sessaoAtiva && !executandoTimer) {
-        if (angulo < 100) { 
+        const meta = getMetaAtual();
+        if (angulo < ANGLE_DOWN) { 
             if (stage !== "down") lastDownTime = Date.now();
             stage = "down";
         }
-        if (angulo > 155 && stage === "down") {
+        if (angulo > ANGLE_UP && stage === "down") {
             if ((Date.now() - lastDownTime) > MIN_PUSHUP_TIME) {
                 stage = "up";
                 if (userData.lastActive !== todayKey) {
@@ -146,6 +140,14 @@ pose.onResults((results) => {
                 const fb = document.getElementById('feedback');
                 fb.style.opacity = "1";
                 setTimeout(() => fb.style.opacity = "0", 400);
+
+                if (sessionCounter >= meta) {
+                    sessaoAtiva = false;
+                    setTimeout(() => {
+                        document.getElementById('start-msg').style.display = 'block';
+                        document.getElementById('start-overlay').classList.remove('hidden');
+                    }, 1200);
+                }
             }
         }
     }
@@ -169,7 +171,8 @@ function formatDateString(d) {
 function renderHistory() {
     const list = document.getElementById('history-list');
     list.innerHTML = "";
-    const dates = Object.keys(userData.history).sort().reverse().slice(0, 7);
+    // Pega as últimas 5 datas únicas
+    const dates = Object.keys(userData.history).sort().reverse().slice(0, 5);
     dates.forEach(d => {
         list.innerHTML += `<div class="history-item"><span>${formatDateString(d)}</span> <b>${userData.history[d]} reps</b></div>`;
     });
@@ -183,7 +186,6 @@ async function ativarNotificacao() {
     const btn = document.getElementById('config-btn');
     audioPoint.play().then(() => { audioPoint.pause(); audioPoint.currentTime = 0; });
     const permission = await Notification.requestPermission();
-    btn.innerText = (permission === 'granted') ? 'SISTEMA ATIVADO!' : 'PERMISSÃO NEGADA';
-    btn.style.backgroundColor = (permission === 'granted') ? '#2ecc71' : '#e74c3c';
-    setTimeout(() => { btn.innerText = 'Configurar Alertas'; btn.style.backgroundColor = ''; }, 3000);
+    btn.innerText = (permission === 'granted') ? 'ATIVADO!' : 'NEGADO';
+    setTimeout(() => { btn.innerText = 'Configurar Alertas'; }, 3000);
 }
