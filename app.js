@@ -2,10 +2,10 @@ const videoElement = document.getElementById('input_video');
 const canvasElement = document.getElementById('output_canvas');
 const canvasCtx = canvasElement.getContext('2d');
 
-// --- ESTADOS E PERSISTÊNCIA ---
 let sessionCounter = 0;
+// Garantir timezone local ao criar a chave da data
 const now = new Date();
-const todayKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+const todayKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); // YYYY-MM-DD local
 
 let userData = JSON.parse(localStorage.getItem('flexData')) || {
     history: {},
@@ -15,11 +15,14 @@ let userData = JSON.parse(localStorage.getItem('flexData')) || {
     grandTotal: 0
 };
 
+// --- TRAVAS DE SESSÃO ---
+let sessaoAtiva = false;
+let executandoTimer = false;
+
 // --- TRAVAS DE SEGURANÇA ---
 let lastDownTime = 0; 
 const MIN_PUSHUP_TIME = 600; 
 
-// --- FUNÇÃO MATEMÁTICA ---
 function calcularAngulo(A, B, C) {
     let radians = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
     let angle = Math.abs(radians * 180.0 / Math.PI);
@@ -30,7 +33,7 @@ function calcularAngulo(A, B, C) {
 function initData() {
     if (!userData.history[todayKey]) userData.history[todayKey] = 0;
     if (userData.lastActive) {
-        const last = new Date(userData.lastActive + 'T00:00:00');
+        const last = new Date(userData.lastActive + 'T00:00:00'); // Força timezone local
         const today = new Date(todayKey + 'T00:00:00');
         const diffDays = Math.floor((today - last) / (1000 * 60 * 60 * 24));
         if (diffDays > 1) userData.streak = 0;
@@ -47,11 +50,113 @@ function updateUI() {
     document.getElementById('total-today').innerText = userData.history[todayKey] || 0;
     document.getElementById('streak-count').innerText = userData.streak;
     document.getElementById('grand-total').innerText = userData.grandTotal;
-    const start = new Date(userData.startDate + 'T00:00:00');
+    
+    const start = new Date(userData.startDate + 'T00:00:00'); // Força timezone local
     const today = new Date(todayKey + 'T00:00:00');
     const daysDiff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
     const currentGoal = 15 + (Math.floor(daysDiff / 14) * 2);
+    
     document.getElementById('goal-info').innerText = `Meta da Sessão: ${currentGoal}`;
+    
+    // Atualiza Barra de Progresso
+    if (sessaoAtiva) {
+        const progress = Math.min((sessionCounter / currentGoal) * 100, 100);
+        document.getElementById('progress-fill').style.width = progress + '%';
+    } else {
+        document.getElementById('progress-fill').style.width = '0%';
+    }
+}
+
+// --- LÓGICA DO BOTÃO START E TIMER ---
+function iniciarSessao() {
+    // Esconde tela START
+    document.getElementById('start-overlay').classList.add('hidden');
+    executandoTimer = true;
+    
+    // Configura o Timer Regressivo
+    const countdownCont = document.getElementById('countdown-container');
+    const countdownSteps = ["5", "4", "3", "2", "1", "FLEXIONA!"];
+    let step = 0;
+
+    countdownCont.classList.add('visible');
+
+    const interval = setInterval(() => {
+        if (step < countdownSteps.length) {
+            countdownCont.innerHTML = `<span>${countdownSteps[step]}</span>`;
+            step++;
+        } else {
+            clearInterval(interval);
+            countdownCont.classList.remove('visible');
+            countdownCont.innerHTML = "";
+            
+            // Ativa a contagem real
+            executandoTimer = false;
+            sessaoAtiva = true;
+            sessionCounter = 0;
+            document.getElementById('session-count').innerText = "0";
+            updateUI();
+        }
+    }, 1000); // 1 segundo por passo
+}
+
+// --- LÓGICA DO BOTÃO RESET (NO PRÓPRIO BOTÃO) ---
+let confirmReset = false;
+let resetTimeout = null;
+
+function confirmarResetarDia() {
+    const btn = document.getElementById('reset-today-btn');
+    
+    if (!confirmReset) {
+        // Primeiro Clique: Pede confirmação
+        confirmReset = true;
+        btn.innerText = 'TEM CERTEZA? (CLIQUE DE NOVO)';
+        btn.classList.add('active');
+        
+        // Dá 3 segundos para confirmar, senão cancela
+        resetTimeout = setTimeout(() => {
+            btn.innerText = 'ZERAR CONTAGEM HOJE';
+            btn.classList.remove('active');
+            confirmReset = false;
+        }, 3000);
+    } else {
+        // Segundo Clique: Executa o reset
+        clearTimeout(resetTimeout);
+        executarResetarDia();
+        
+        // Feedback Visual
+        btn.innerText = 'CONTAGEM ZERADA!';
+        btn.classList.remove('active');
+        confirmReset = false;
+        
+        // Volta ao texto original após 2 segundos
+        setTimeout(() => {
+            btn.innerText = 'ZERAR CONTAGEM HOJE';
+        }, 2000);
+    }
+}
+
+function executarResetarDia() {
+    // Acessa o total de hoje
+    const totalHoje = userData.history[todayKey] || 0;
+    
+    if (totalHoje === 0) return; // Nada a resetar
+
+    // Subtrai do Grand Total
+    userData.grandTotal = Math.max(userData.grandTotal - totalHoje, 0);
+    
+    // Zera o histórico de hoje
+    userData.history[todayKey] = 0;
+    
+    // Zera a sessão atual se estiver ativa
+    if (sessaoAtiva) {
+        sessionCounter = 0;
+        document.getElementById('session-count').innerText = "0";
+    }
+
+    // Salva os dados
+    saveData();
+    // Re-renderiza o histórico (se o painel estiver aberto)
+    renderHistory();
 }
 
 const audioPoint = new Audio('point.mp3');
@@ -71,37 +176,31 @@ pose.onResults((results) => {
     const anguloDir = calcularAngulo(landmarks[12], landmarks[14], landmarks[16]);
     const anguloMedio = (anguloEsq + anguloDir) / 2;
 
-    if (anguloMedio < 100) { 
-        if (stage !== "down") {
-            lastDownTime = Date.now();
+    // --- SÓ CONTA SE A SESSÃO ESTIVER ATIVA E O TIMER NÃO ---
+    if (sessaoAtiva && !executandoTimer) {
+        if (anguloMedio < 100) { 
+            if (stage !== "down") lastDownTime = Date.now();
+            stage = "down";
         }
-        stage = "down";
-    }
-    
-    if (anguloMedio > 155 && stage === "down") {
-        const duration = Date.now() - lastDownTime;
-
-        if (duration > MIN_PUSHUP_TIME) {
-            stage = "up";
-            
-            if (userData.lastActive !== todayKey) {
-                userData.streak++;
-                userData.lastActive = todayKey;
+        
+        if (anguloMedio > 155 && stage === "down") {
+            if ((Date.now() - lastDownTime) > MIN_PUSHUP_TIME) {
+                stage = "up";
+                if (userData.lastActive !== todayKey) {
+                    userData.streak++;
+                    userData.lastActive = todayKey;
+                }
+                sessionCounter++;
+                userData.history[todayKey]++;
+                userData.grandTotal++;
+                document.getElementById('session-count').innerText = sessionCounter;
+                saveData();
+                if (sessionCounter % 10 === 0 && sessionCounter !== 0) audio10Point.play();
+                else audioPoint.play();
+                const fb = document.getElementById('feedback');
+                fb.style.opacity = "1";
+                setTimeout(() => fb.style.opacity = "0", 400);
             }
-
-            sessionCounter++;
-            userData.history[todayKey]++;
-            userData.grandTotal++;
-            
-            document.getElementById('session-count').innerText = sessionCounter;
-            saveData();
-
-            if (sessionCounter % 10 === 0 && sessionCounter !== 0) audio10Point.play();
-            else audioPoint.play();
-
-            const fb = document.getElementById('feedback');
-            fb.style.opacity = "1";
-            setTimeout(() => fb.style.opacity = "0", 400);
         }
     }
 
@@ -115,8 +214,9 @@ pose.onResults((results) => {
     canvasCtx.restore();
 });
 
+// Formatação do histórico
 function formatDateString(dateStr) {
-    const dateObj = new Date(dateStr + 'T00:00:00');
+    const dateObj = new Date(dateStr + 'T00:00:00'); // Força timezone local
     const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
     const date = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} - ${date}`;
@@ -135,24 +235,17 @@ const camera = new Camera(videoElement, { onFrame: async () => { await pose.send
 camera.start();
 initData();
 
-// --- CORREÇÃO DO TRAVAMENTO ---
 async function ativarNotificacao() {
     const btn = document.getElementById('config-btn');
-    
-    // Libera o áudio
     audioPoint.play().then(() => { audioPoint.pause(); audioPoint.currentTime = 0; });
-    
     const permission = await Notification.requestPermission();
-    
     if (permission === 'granted') {
         btn.innerText = 'SISTEMA ATIVADO!';
-        btn.style.backgroundColor = '#2ecc71'; // Muda para verde
+        btn.style.backgroundColor = '#2ecc71';
     } else {
         btn.innerText = 'PERMISSÃO NEGADA';
-        btn.style.backgroundColor = '#e74c3c'; // Muda para vermelho
+        btn.style.backgroundColor = '#e74c3c';
     }
-
-    // Volta ao texto original após 3 segundos sem travar a tela
     setTimeout(() => {
         btn.innerText = 'Configurar Alertas';
         btn.style.backgroundColor = '';
